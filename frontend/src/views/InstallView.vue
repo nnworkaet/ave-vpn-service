@@ -39,19 +39,21 @@
             :class="['accordion-header', { open: activeIndex === index }]"
           >
             {{ os.name }}
+            <span class="arrow" :class="{ rotated: activeIndex === index }">▼</span>
           </button>
-          <div v-if="activeIndex === index" class="accordion-content">
-            <!-- Обернули иконку и описание в ссылку -->
-            <div
-              v-for="(icon, iconIndex) in os.icons"
-              :key="iconIndex"
-              class="icon-description"
-              @click="openLink(os.links[iconIndex])"
-            >
-              <img :src="icon" alt="app icon" class="app-icon" />
-              <p class="app-name">{{ os.descriptions[iconIndex] }}</p>
+          <transition name="accordion">
+            <div v-if="activeIndex === index" class="accordion-content">
+              <div
+                v-for="(icon, iconIndex) in os.icons"
+                :key="iconIndex"
+                class="icon-description"
+                @click="openLink(os.links[iconIndex])"
+              >
+                <img :src="icon" alt="app icon" class="app-icon" />
+                <p class="app-name">{{ os.descriptions[iconIndex] }}</p>
+              </div>
             </div>
-          </div>
+          </transition>
         </div>
       </div>
     </div>
@@ -69,10 +71,13 @@
             :class="['accordion-header', { open: activeIndex === index }]"
           >
             {{ app.name }}
+            <span class="arrow" :class="{ rotated: activeIndex === index }">▼</span>
           </button>
-          <div v-if="activeIndex === index" class="accordion-content">
-            <video controls :src="app.videoUrl" class="instruction-video" />
-          </div>
+          <transition name="accordion">
+            <div v-if="activeIndex === index" class="accordion-content">
+              <video controls :src="app.videoUrl" class="instruction-video" />
+            </div>
+          </transition>
         </div>
       </div>
     </div>
@@ -82,11 +87,12 @@
 <script>
 import { defineComponent, ref } from "vue";
 import BackButton from "@/components/BackButton.vue";
+import { haptic } from "@/utils/telegram";
 
 export default defineComponent({
   components: { BackButton },
   setup() {
-    const link = sessionStorage.getItem("subscription_link");
+    const link = ref(sessionStorage.getItem("subscription_link"));
     const selectedTab = ref("app"); // 'app' или 'instruction'
     const activeIndex = ref(null);
 
@@ -128,35 +134,37 @@ export default defineComponent({
 
     // Список приложений для вкладки "Инструкция"
     const appList = ref([
-      { name: "nekoray", videoUrl: "/videos/app1-instruction.mp4" },
-      { name: "V2Box", videoUrl: "/videos/app2-instruction.mp4" },
-      { name: "FoXray", videoUrl: "/videos/app3-instruction.mp4" },
+      { name: "nekoray", videoUrl: "nekobox.mp4" },
+      { name: "V2Box", videoUrl: "v2box-video.mp4" },
+      { name: "FoXray", videoUrl: "foxray-video.mp4" },
     ]);
 
     // Функция для копирования ссылки
-    const copyLink = () => {
-      const linkInput = document.querySelector(".link-field"); // прямой доступ к DOM элементу
-      if (linkInput) {
-        linkInput.select();
-        document.execCommand("copy");
+    const copyLink = async () => {
+      haptic.impact();
+      try {
+        await navigator.clipboard.writeText(link.value);
         alert("Ссылка скопирована в буфер обмена!");
-      } else {
-        console.error("Поле ввода ссылки не найдено");
+      } catch (err) {
+        console.error("Failed to copy text: ", err);
       }
     };
 
     const openLink = (url) => {
+      haptic.medium();
       window.open(url, "_blank");
     };
 
     // Функция для переключения вкладок
     const selectTab = (tab) => {
+      haptic.selection();
       selectedTab.value = tab;
       activeIndex.value = null; // Сбросить активный элемент при переключении вкладки
     };
 
     // Функция для раскрытия вкладки
     const toggleAccordion = (index) => {
+      haptic.selection();
       activeIndex.value = activeIndex.value === index ? null : index;
     };
 
@@ -177,9 +185,9 @@ export default defineComponent({
 
 <style scoped lang="scss">
 .container {
-  width: 90%;
+  width: 95%;
   height: 90%;
-  padding: 20px;
+  padding: 20px 10px 20px 10px;
   border-radius: 20px;
 }
 .copy-link {
@@ -243,6 +251,9 @@ export default defineComponent({
     text-align: left;
     cursor: pointer;
     outline: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
 
   .accordion-header.open {
@@ -257,6 +268,8 @@ export default defineComponent({
     border-radius: 0 0 15px 15px;
     color: black;
     background-color: #fafafa;
+    transform-origin: top;
+    transition: all 0.3s ease;
   }
 }
 
@@ -270,6 +283,9 @@ export default defineComponent({
   display: flex;
   flex-direction: column;
   align-items: center;
+  opacity: 0;
+  animation: fadeIn 0.3s ease forwards;
+  animation-delay: 0.1s;
 }
 
 .app-name {
@@ -279,5 +295,37 @@ export default defineComponent({
 .instruction-video {
   width: 100%;
   height: 300px;
+}
+
+.arrow {
+  transition: transform 0.3s ease;
+}
+
+.arrow.rotated {
+  transform: rotate(180deg);
+}
+
+.accordion-enter-active,
+.accordion-leave-active {
+  transition: all 0.3s ease;
+  max-height: 300px; /* Подберите значение под ваш контент */
+  overflow: hidden;
+}
+
+.accordion-enter-from,
+.accordion-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

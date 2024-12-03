@@ -4,8 +4,23 @@
 </template>
 
 <script>
-export default {
-  name: "BackButton",
+import { defineComponent } from "vue";
+import { useRouter } from "vue-router";
+import { haptic } from "@/utils/telegram";
+
+export default defineComponent({
+  setup() {
+    const router = useRouter();
+
+    const goBack = () => {
+      haptic.impact();
+      router.back();
+    };
+
+    return {
+      goBack,
+    };
+  },
   mounted() {
     // Проверяем, доступен ли Telegram.WebApp
     if (window.Telegram && window.Telegram.WebApp) {
@@ -16,8 +31,7 @@ export default {
 
       // Добавляем обработчик нажатия на кнопку "Назад"
       backButton.onClick(() => {
-        // Переходим на главную страницу
-        this.$router.push("/");
+        this.goBack();
       });
     }
   },
@@ -28,5 +42,5 @@ export default {
       window.Telegram.WebApp.BackButton.hide();
     }
   },
-};
+});
 </script>

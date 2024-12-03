@@ -11,7 +11,11 @@
         :class="{ active: selectedPeriod === period }"
         @click="selectPeriod(period)"
       >
-        {{ selectedPeriod === period ? period.fullLabel : period.shortLabel }}
+        <transition name="fade" mode="out-in">
+          <div class="period-content">
+            <span class="period-name">{{ selectedPeriod === period ? period.fullLabel : period.shortLabel }}</span>
+          </div>
+        </transition>
       </button>
     </div>
     <div class="protocol-selection">
@@ -31,14 +35,15 @@
         :class="{ active: selectedTariff === tariff }"
         @click="selectTariff(tariff)"
       >
-        <div class="tariff-name">{{ tariff.name }}</div>
-        <div class="tariff-devices">{{ tariff.devices }}</div>
-        <div
-          class="tariff-price"
-          :class="{ 'active-price': selectedTariff === tariff }"
-        >
-          {{ calculatePrice(tariff.basePrice) }}
-        </div>
+        <transition name="fade" mode="out-in">
+          <div class="tariff-name">{{ tariff.name }}</div>
+        </transition>
+        <transition name="fade" mode="out-in">
+          <div class="tariff-devices">{{ tariff.devices }}</div>
+        </transition>
+        <transition name="fade" mode="out-in">
+          <div class="tariff-price">{{ calculatePrice(tariff.basePrice) }}</div>
+        </transition>
       </button>
     </div>
     <div class="buy-button">
@@ -55,6 +60,7 @@
 <script>
 import { defineComponent, ref } from "vue";
 import BackButton from "@/components/BackButton.vue";
+import { haptic } from "@/utils/telegram";
 
 export default defineComponent({
   components: { BackButton },
@@ -85,10 +91,12 @@ export default defineComponent({
     };
 
     const selectPeriod = (period) => {
+      haptic.selection();
       selectedPeriod.value = period;
     };
 
     const selectTariff = (tariff) => {
+      haptic.selection();
       selectedTariff.value = tariff;
     };
 
@@ -98,6 +106,7 @@ export default defineComponent({
 
     // Функция для отправки JSON на сервер
     const purchase = async () => {
+      haptic.medium();
       const jwtToken = sessionStorage.getItem("jwtToken");
       const tg_id = Number(sessionStorage.getItem("tg_id"));
       const tariff_name = selectedTariff.value.name;
@@ -111,7 +120,7 @@ export default defineComponent({
       };
 
       try {
-        const response = await fetch("https://matcher.fun/requestBuyTariff", {
+        const response = await fetch("https://back.avevpn.su/requestBuyTariff", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -129,9 +138,11 @@ export default defineComponent({
         // Проверяем, что за результат мы получили
         if (result === 200) {
           alertMessage.value = "Тариф успешно приобретен";
+          haptic.success()
           alertType.value = "success"; // Зеленый или другой цвет для успеха
         } else if (result === "Can't change tariff") {
           alertMessage.value = "У вас уже есть другой тариф";
+          haptic.error()
           alertType.value = "error"; // Красный цвет для ошибки
         }
 
@@ -217,39 +228,38 @@ export default defineComponent({
   height: 90%;
   padding: 20px;
   border-radius: 20px;
-  margin-top: -40px;
 }
-.tariff-selection button {
-  margin-top: 3vh;
-  border: none;
+.tariff-selection {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 10px;
-  width: 100%;
-  background-color: #2a2a2a;
-  border-radius: 10px;
-  margin-bottom: 10px;
-  text-align: left;
-  color: white;
+  gap: 15px;
+  padding-top: 10px;
+}
+.tariff-selection button {
   position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  padding: 15px;
+  background: #1f1f1f;
+  border: none;
+  color: white;
+  text-align: left;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 .tariff-selection button.active {
-  background-color: #ececec;
-  color: #1e1e1e;
+  background: #343434;
+  transform: scale(1.02);
 }
-
+.tariff-name, .tariff-devices, .tariff-price {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 .tariff-name {
   font-weight: bold;
   font-size: 4vh;
 }
-
 .tariff-devices {
   font-size: 2vh;
 }
-
 .tariff-price {
   background-color: #ececec;
   padding: 5px;
@@ -307,5 +317,16 @@ export default defineComponent({
 /* Когда alert исчезает */
 .alert.hidden {
   opacity: 0;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 </style>

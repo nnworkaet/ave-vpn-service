@@ -24,12 +24,9 @@
           {{ starsAmount }}⭐
         </span>
 
-        <div @click="openModal('help')" class="help-icon">
+        <div @click="goTo('faq')" class="help-icon">
           <label style="font-weight: bold">?</label>
         </div>
-        <ModalComponent ref="helpModalRef" class="help-modal">
-          <p>payments FAQ</p>
-        </ModalComponent>
       </div>
       <div class="num-buttons">
         <button class="button1" @click="updateAmount(100)">100</button>
@@ -128,6 +125,8 @@ import BackButton from "@/components/BackButton.vue";
 import KeyboardCloser from "@/components/KeyboardCloser.vue";
 import ModalComponent from "@/components/ModalComponent.vue";
 import { useWebAppNavigation } from "vue-tg";
+import { useRouter } from "vue-router";
+import { haptic } from "@/utils/telegram";
 
 export default defineComponent({
   components: { ModalComponent, BackButton, KeyboardCloser },
@@ -139,6 +138,7 @@ export default defineComponent({
     const selectedPaymentMethod = ref("Выберите метод оплаты");
     const StarsInfoModal = ref(null);
     const webAppNavigation = useWebAppNavigation();
+    const router = useRouter();
 
     // Вычисляем сумму в звёздах
     const starsAmount = computed(() => {
@@ -147,7 +147,13 @@ export default defineComponent({
     });
 
     const updateAmount = (amount) => {
+      haptic.selection();
       depositAmount.value = amount;
+    };
+
+    const goTo = (route) => {
+      haptic.impact();
+      router.push(`/${route}`);
     };
 
     const openModal = (modal) => {
@@ -166,13 +172,15 @@ export default defineComponent({
     };
 
     const closeStarsInfoModal = () => {
+      haptic.impact();
       StarsInfoModal.value.closeModal();
     };
 
     // Функция для отправки запроса и открытия ссылки
     const processPayment = async () => {
+      haptic.medium();
       try {
-        const response = await fetch("https://matcher.fun/requestGetInvoice", {
+        const response = await fetch("https://back.avevpn.su/requestGetInvoice", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -220,6 +228,7 @@ export default defineComponent({
       StarsInfoModal,
       closeStarsInfoModal,
       processPayment,
+      goTo,
     };
   },
 });
@@ -227,9 +236,9 @@ export default defineComponent({
 
 <style scoped>
 .dep-container {
-  width: 90%;
+  width: 95%;
   height: 90%;
-  padding: 20px;
+  padding: 20px 10px 20px 10px;
   border-radius: 20px;
 }
 .sum-inputer {
@@ -300,7 +309,6 @@ input[type="number"]::-webkit-inner-spin-button {
 .num-buttons {
   display: flex;
   justify-content: space-between;
-  margin-top: 8px;
 }
 .button1,
 .button2,

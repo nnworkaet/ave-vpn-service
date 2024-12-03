@@ -7,19 +7,25 @@
         :class="['accordion-header', { open: activeIndex === index }]"
       >
         {{ faq.question }}
+        <span class="arrow" :class="{ rotated: activeIndex === index }">▼</span>
       </button>
-      <div v-if="activeIndex === index" class="accordion-content">
-        <p v-for="(answer, i) in faq.answer" :key="i">{{ answer }}</p>
-      </div>
+      <transition name="accordion">
+        <div v-if="activeIndex === index" class="accordion-content">
+          <p v-for="(answer, i) in faq.answer" :key="i" class="answer-text">
+            {{ answer }}
+          </p>
+        </div>
+      </transition>
     </div>
   </div>
 </template>
 
 <script>
-import { ref } from "vue";
+import { defineComponent, ref } from "vue";
 import BackButton from "@/components/BackButton.vue";
+import { haptic } from "@/utils/telegram";
 
-export default {
+export default defineComponent({
   components: { BackButton },
   setup() {
     const faqList = ref([
@@ -90,9 +96,10 @@ export default {
         ],
       },
     ]);
-    const activeIndex = ref(faqList.value.length - 1);
+    const activeIndex = ref(0);
 
     const toggleAccordion = (index) => {
+      haptic.selection();
       activeIndex.value = activeIndex.value === index ? null : index;
     };
 
@@ -102,43 +109,95 @@ export default {
       toggleAccordion,
     };
   },
-};
+});
 </script>
 
-<style>
+<style scoped>
 .accordion {
-  display: flex;
-  flex-direction: column-reverse;
-  align-items: center;
-  margin: 20px;
-  overflow-y: auto;
+  padding: 10px;
 }
 
 .accordion-item {
-  border-radius: 15px;
-  background-color: #1e1e1e;
   margin-bottom: 10px;
-  width: 100%;
-}
-
-.accordion-header.open {
-  background: #59a776;
-  color: white;
+  border-radius: 20px;
+  overflow: hidden;
 }
 
 .accordion-header {
-  border-radius: 15px;
-  background-color: #1f1f1f;
   width: 100%;
-  font-size: 16px;
-  color: #ececec;
+  padding: 15px;
+  text-align: left;
+  background: #1f1f1f;
+  color: white;
   border: none;
-  padding-bottom: 5px;
-  padding-top: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-header.open {
+  background: #1f1f1f;
+}
+
+.arrow {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.arrow.rotated {
+  transform: rotate(180deg);
 }
 
 .accordion-content {
-  padding-right: 10px;
-  padding-left: 10px;
+  background: #343434;
+  padding: 15px;
+  transform-origin: top;
+  border-radius: 0px 0px 20px 20px;
+  will-change: transform, opacity;
+}
+
+.answer-text {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.answer-text:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.answer-text:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.accordion-enter-active,
+.accordion-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 1000px;
+  opacity: 1;
+}
+
+.accordion-enter-from,
+.accordion-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.accordion-enter-from .answer-text,
+.accordion-leave-to .answer-text {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+@keyframes slideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

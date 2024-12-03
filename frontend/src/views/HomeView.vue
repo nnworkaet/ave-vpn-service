@@ -2,7 +2,9 @@
   <div class="container">
     <div class="balance">
       <div class="top-balance">
-        <span class="balance-text">{{ balance }}₽</span>
+        <span :class="['balance-text', { 'skeleton': balance === null }]">
+          {{ balance !== null ? `${balance}₽` : '0₽' }}
+        </span>
         <div @click="goTo('faq')" class="help-icon">
           <label style="font-weight: bold">?</label>
         </div>
@@ -23,13 +25,20 @@
 
     <div
       class="vpn-buttons"
-      :class="tariffName !== null ? 'subscribed' : 'not-subscribed'"
+      :class="[
+        tariffName !== null ? 'subscribed' : 'not-subscribed',
+        { 'gradient-animate': tariffName }
+      ]"
     >
       <div v-if="tariffName !== null" class="sub-container">
         <div class="top-sub-container">
-          <p class="p-container">{{ tariffName }}</p>
+          <p class="p-container" :class="{ 'skeleton': !tariffName }">
+            {{ tariffName || '' }}
+          </p>
         </div>
-        <p class="time-container">{{ subscriptionEnd }}</p>
+        <p class="time-container" :class="{ 'skeleton': !subscriptionEnd }">
+          {{ subscriptionEnd || '' }}
+        </p>
       </div>
       <div class="vpn-buttons-container">
         <button class="button-buy-vpn" @click="goTo('buyVPN')">
@@ -47,9 +56,8 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
-import ModalComponent from "@/components/ModalComponent.vue";
+import { haptic } from "@/utils/telegram";
 
-const modalRef = ref(null);
 const router = useRouter();
 
 // Переменные для хранения данных
@@ -57,23 +65,21 @@ const telegramId = ref(null);
 const hash = ref(null);
 const initData = ref(null);
 const jwtToken = ref(null);
-const balance = ref(0);
+const balance = ref(null);
 const tariffName = ref("");
 const subscriptionEnd = ref("");
 const subscription_link = ref("");
-
-const openModal = () => {
-  modalRef.value.openModal();
-};
+const link_state = ref(null);
 
 const goTo = (route) => {
+  haptic.impact();
   router.push(`/${route}`);
 };
 
 // Функция для получения JWT токена с бэкенда
 const fetchJwtToken = async () => {
   try {
-    const response = await axios.post("https://matcher.fun/tokentg", {
+    const response = await axios.post("https://back.avevpn.su/tokentg", {
       hash: hash.value,
       init_data: initData.value,
       user_tg_id: telegramId.value,
@@ -120,7 +126,7 @@ const fetchUserInfo = async () => {
   try {
     // Отправка POST запроса
     const response = await axios.post(
-      "https://matcher.fun/requestGetAllUserInfo",
+      "https://back.avevpn.su/requestGetAllUserInfo",
       {}, // Тело запроса (пустое, если оно не требуется)
       {
         headers: {
@@ -136,7 +142,9 @@ const fetchUserInfo = async () => {
 
     balance.value = userInfo.balance;
     subscription_link.value = userInfo.subscription_link;
+    link_state.value = userInfo.link_state;
     sessionStorage.setItem("subscription_link", subscription_link.value);
+    sessionStorage.setItem("link_state", link_state.value);
     // Присваиваем значения тарифу и окончанию подписки
     tariffName.value = userInfo.tariff_name || null; // Если нет тарифа, выводим "Нет тарифа"
 
@@ -201,9 +209,9 @@ onMounted(async () => {
 
 <style scoped>
 .container {
-  width: 90%;
+  width: 95%;
   height: 90%;
-  padding: 20px;
+  padding: 20px 10px 20px 10px;
   border-radius: 20px;
 }
 .balance {
@@ -277,16 +285,10 @@ onMounted(async () => {
   height: 100%;
 }
 .vpn-buttons {
-  background-color: #1f1f1f;
-  padding: 15px;
-  border-radius: 15px;
-  display: flex;
-  align-items: center;
   position: relative;
-  justify-content: space-between;
-  margin: 0;
-  border: none;
-  height: auto;
+  overflow: hidden;
+  border-radius: 20px;
+  margin-top: 20px;
 }
 .vpn-buttons-container {
   display: flex;
@@ -315,10 +317,44 @@ onMounted(async () => {
 .subscribed {
   background-color: #1f1f1f;
   color: white;
-  padding: 10px;
+  padding: 15px;
   display: flex;
   flex-direction: column;
 }
+.gradient-animate {
+  background: linear-gradient(
+    120deg,
+    #1f1f1f 0%,
+    #1f1f1f 25%,
+    #2c2c2c 45%,
+    #343434 50%,
+    #2c2c2c 55%,
+    #1f1f1f 75%,
+    #1f1f1f 100%
+  );
+  background-size: 200% 100%;
+  animation: gradientMove 8s linear infinite;
+}
+
+@keyframes gradientMove {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.sub-container {
+  position: relative;
+  z-index: 1;
+  font-size: 24px;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: -4vw;
+  width: 100%;
+}
+
 .help-icon {
   display: flex;
   flex-direction: column;
@@ -330,13 +366,6 @@ onMounted(async () => {
   justify-content: center;
   color: #59a776;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-.sub-container {
-  font-size: 24px;
-  display: flex;
-  flex-direction: column;
-  margin-bottom: -4vw;
-  width: 100%;
 }
 .p-container {
   font-weight: bold;
@@ -350,5 +379,52 @@ onMounted(async () => {
   font-size: 20px;
   margin-top: -5vw;
   color: #c5c5c5;
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #1f1f1f;
+  border-radius: 16px;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.05) 20%,
+    rgba(255, 255, 255, 0.1) 60%,
+    rgba(255, 255, 255, 0)
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.balance-text.skeleton {
+  min-width: 80px;
+  height: 5vh;
+}
+
+.p-container.skeleton {
+  min-width: 150px;
+  height: 20px;
+}
+
+.time-container.skeleton {
+  min-width: 120px;
+  height: 20px;
+  margin-top: -6vw;
+  margin-bottom: 3vh;
 }
 </style>
