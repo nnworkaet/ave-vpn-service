@@ -13,9 +13,9 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import("../views/DepositView.vue"),
   },
   {
-    path: "/withdraw",
-    name: "withdraw",
-    component: () => import("../views/WithdrawView.vue"),
+    path: "/payment-history",
+    name: "payment-history",
+    component: () => import("../views/PayHistoryView.vue"),
   },
   {
     path: "/referal",
@@ -33,9 +33,19 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import("../views/InstallView.vue"),
   },
   {
+    path: "/installVPNFree",
+    name: "installVPNFree",
+    component: () => import("../views/InstallViewFree.vue"),
+  },
+  {
     path: "/faq",
     name: "faq",
     component: () => import("../views/FAQView.vue"),
+  },
+  {
+    path: "/tasks",
+    name: "tasks",
+    component: () => import("../views/TasksView.vue"),
   },
 ];
 

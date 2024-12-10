@@ -24,8 +24,8 @@
           {{ starsAmount }}⭐
         </span>
 
-        <div @click="goTo('faq')" class="help-icon">
-          <label style="font-weight: bold">?</label>
+        <div @click="goTo('payment-history')" class="help-icon">
+          <label style="font-weight: bold">⏳</label>
         </div>
       </div>
       <div class="num-buttons">
@@ -36,6 +36,11 @@
       </div>
     </div>
     <KeyboardCloser :targetRef="depositInput" />
+
+    <div class="min-dep-warn" v-if="depositAmount < 100">
+      <p>Минимальный депозит 100₽</p>
+    </div>
+
     <div class="deposit-requester">
       <div @click="openModal('payment')" class="payment-method">
         <div v-if="selectedPaymentMethod" class="choosen-method">
@@ -43,6 +48,7 @@
         </div>
         <img src="../../public/open_icon.svg" alt="open icon" />
       </div>
+
       <ModalComponent
         ref="paymentMethodModalRef"
         class="payment-modal"
@@ -52,36 +58,29 @@
           <label>Способы оплаты</label>
           <div class="methods-container">
             <div
+              v-for="method in paymentMethods"
+              :key="method.id"
               class="method"
-              @click="
-                selectPaymentMethod('Telegram Stars');
-                openModal('StarsInfo');
-              "
+              @click="method.onClick"
             >
               <div class="icon-container">
                 <img
+                  v-if="method.type === 'image'"
+                  :src="method.icon"
                   style="justify-content: center"
-                  src="../../public/tg_star.svg"
-                  alt="tg star"
+                  :alt="method.name"
                 />
+                <label v-else :style="method.iconStyle">{{ method.icon }}</label>
               </div>
               <div class="method-description">
-                <label class="method-name">Telegram Stars</label>
-                <label class="method-outline">Оплата картой</label>
-              </div>
-            </div>
-            <div class="method" @click="selectPaymentMethod('Cryptomus soon')">
-              <div class="icon-container">
-                <label style="font-size: 37px">₿</label>
-              </div>
-              <div class="method-description">
-                <label class="method-name">Cryptomus soon</label>
-                <label class="method-outline">Оплата криптовалютой</label>
+                <label class="method-name">{{ method.name }}</label>
+                <label class="method-outline">{{ method.description }}</label>
               </div>
             </div>
           </div>
         </div>
       </ModalComponent>
+
       <ModalComponent ref="StarsInfoModal" class="stars-info">
         <p>Как купить звезды?</p>
         <div class="buy-stars-text">
@@ -111,11 +110,32 @@
           Продолжить
         </button>
       </ModalComponent>
-      <button class="choose-payment-method" @click="processPayment">
+
+      <button
+        class="choose-payment-method"
+        @click="handlePayment"
+        :disabled="!selectedPaymentMethod || selectedPaymentMethod === 'Выберите метод оплаты' || isLoading || depositAmount < 100"
+      >
         Оплатить
       </button>
     </div>
+
+    <!-- Блок со ссылкой на оплату -->
+    <div v-if="paymentLink" class="payment-link-block">
+      <div class="payment-link-title">Счет на оплату</div>
+      <div class="payment-link-subtitle">на случай если не открылось автоматически</div>
+      <button @click="openPaymentLink(paymentLink)" class="payment-link-button">Открыть счет</button>
+    </div>
+
     <div class="deposit-history"></div>
+  </div>
+
+  <div v-if="selectedPaymentMethod === 'TelegaPay' & depositAmount >= 100" class="telegapay-popup-overlay">
+    <TelegaPayPopup 
+      :depositAmount="depositAmount"
+      @method-selected="handleTelegaPayMethodSelect"
+      @close="closeTelegaPayPopup"
+    />
   </div>
 </template>
 
@@ -124,25 +144,60 @@ import { defineComponent, ref, computed } from "vue";
 import BackButton from "@/components/BackButton.vue";
 import KeyboardCloser from "@/components/KeyboardCloser.vue";
 import ModalComponent from "@/components/ModalComponent.vue";
+import TelegaPayPopup from "@/components/TelegaPayPopup.vue";
 import { useWebAppNavigation } from "vue-tg";
 import { useRouter } from "vue-router";
 import { haptic } from "@/utils/telegram";
+import axios from 'axios';
 
 export default defineComponent({
-  components: { ModalComponent, BackButton, KeyboardCloser },
+  components: { ModalComponent, BackButton, KeyboardCloser, TelegaPayPopup },
   setup() {
     const depositAmount = ref(150);
     const depositInput = ref(null);
     const helpModalRef = ref(null);
     const paymentMethodModalRef = ref(null);
-    const selectedPaymentMethod = ref("Выберите метод оплаты");
+    const selectedPaymentMethod = ref("Cryptomus");
     const StarsInfoModal = ref(null);
+    const paymentLink = ref("");
     const webAppNavigation = useWebAppNavigation();
     const router = useRouter();
+    const isLoading = ref(false);
 
-    // Вычисляем сумму в звёздах
+    const paymentMethods = ref([
+      {
+        id: 'telegram_stars',
+        name: 'Telegram Stars',
+        description: 'Оплата звездами',
+        icon: 'tg_star.svg',
+        type: 'image',
+        onClick: () => {
+          selectPaymentMethod('Telegram Stars');
+          openModal('StarsInfo');
+        }
+      },
+      {
+        id: 'cryptomus',
+        name: 'Cryptomus',
+        description: 'Оплата криптовалютой',
+        icon: 'cryptomus_logo.svg',
+        type: 'image',
+        iconStyle: { width: '42px' },
+        onClick: () => selectPaymentMethod('Cryptomus')
+      },
+      {
+        id: 'TelegaPay',
+        name: 'TelegaPay',
+        description: 'Оплата банковским переводом',
+        icon: 'telegapay-logo48.png',
+        type: 'image',
+        iconStyle: { width: '42px' },
+        onClick: () => selectPaymentMethod('TelegaPay')
+      }
+    ]);
+
     const starsAmount = computed(() => {
-      const stars = depositAmount.value * 0.478;
+      const stars = depositAmount.value * 0.513392857142857;
       return Math.round(stars);
     });
 
@@ -176,13 +231,23 @@ export default defineComponent({
       StarsInfoModal.value.closeModal();
     };
 
-    // Функция для отправки запроса и открытия ссылки
-    const processPayment = async () => {
+    const openPaymentLink = (link) => {
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.openLink(link);
+      } else {
+        window.open(link, '_self');
+      }
+    };
+
+    const processTelegramStars = async () => {
       haptic.medium();
+      isLoading.value = true;
+      const jwtToken = sessionStorage.getItem("jwtToken");
       try {
         const response = await fetch("https://back.avevpn.su/requestGetInvoice", {
           method: "POST",
           headers: {
+            Authorization: `${jwtToken}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ amount: starsAmount.value }),
@@ -193,17 +258,12 @@ export default defineComponent({
         }
 
         let result = await response.text();
-        console.log("Ссылка перед обработкой:", result);
 
-        // Если `result` — строка в формате JSON, попробуем её распарсить
         try {
           result = JSON.parse(result);
         } catch {
-          // Если не получилось, значит это уже строка, просто удалим кавычки
           result = result.replace(/^"|"$/g, "");
         }
-
-        console.log("Ссылка после обработки:", result);
 
         if (result) {
           webAppNavigation.openInvoice(result);
@@ -213,22 +273,98 @@ export default defineComponent({
       } catch (error) {
         console.error("Ошибка при отправке запроса:", error);
       }
+      isLoading.value = false
     };
+
+    const handleTelegaPayMethodSelect = async (method) => {
+      console.log('Selected TelegaPay method:', method);
+    };
+
+    const closeTelegaPayPopup = () => {
+      haptic.impact();
+      selectedPaymentMethod.value = "Выберите метод оплаты";
+    };
+
+    const handlePayment = () => {
+      if (!selectedPaymentMethod.value || selectedPaymentMethod.value === "Выберите метод оплаты") {
+        alert("Пожалуйста, выберите метод оплаты");
+        return;
+      }
+
+      if (isLoading.value) {
+        alert("Запрос уже обрабатывается");
+        return;
+      }
+
+      switch (selectedPaymentMethod.value) {
+        case "Telegram Stars":
+          processTelegramStars();
+          break;
+        case "Cryptomus":
+          processCryptomus();
+          break;
+        case "TelegaPay":
+          processTelegaPay();
+          break;
+        default:
+          alert("Неподдерживаемый метод оплаты");
+      }
+    };
+
+    const processCryptomus = async () => {
+      haptic.medium();
+      isLoading.value = true;
+      try {
+        const jwtToken = sessionStorage.getItem("jwtToken");
+        const response = await axios.post(
+          "https://back.avevpn.su/requestBuyCryptomus",
+          { amount: String(depositAmount.value) },
+          {
+            headers: {
+              Authorization: `${jwtToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response.data) {
+          paymentLink.value = response.data;
+          openPaymentLink(paymentLink.value);
+        } else {
+          throw new Error("Не получен URL для оплаты");
+        }
+      } catch (error) {
+        console.error("Ошибка при обработке Cryptomus платежа:", error);
+        alert("Произошла ошибка при создании платежа. Пожалуйста, попробуйте позже.");
+      }
+      isLoading.value = false
+    };
+
+    const processTelegaPay = async () => {
+      haptic.medium();
+      isLoading.value = true;
+    }
 
     return {
       depositAmount,
+      paymentMethodModalRef,
       depositInput,
-      starsAmount,
+      selectedPaymentMethod,
+      paymentLink,
+      openPaymentLink,
+      paymentMethods,
       updateAmount,
       openModal,
       helpModalRef,
-      paymentMethodModalRef,
-      selectedPaymentMethod,
       selectPaymentMethod,
       StarsInfoModal,
       closeStarsInfoModal,
-      processPayment,
+      handlePayment,
       goTo,
+      starsAmount,
+      isLoading,
+      handleTelegaPayMethodSelect,
+      closeTelegaPayPopup
     };
   },
 });
@@ -262,15 +398,15 @@ export default defineComponent({
   flex-direction: column;
   border-radius: 50%;
   background-color: #ececec;
-  height: 6vw;
-  width: 6vw;
+  height: 10vw;
+  width: 10vw;
   text-align: center;
   justify-content: center;
   color: #59a776;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
-.help-modal {
-  color: white;
+.help-icon label {
+  font-size: 23px;
 }
 .input-label {
   display: block;
@@ -283,7 +419,7 @@ export default defineComponent({
   overflow: hidden;
   -webkit-appearance: none;
   appearance: none;
-  width: 90%;
+  width: 85%;
   padding: 1px;
   height: 10vh;
   font-size: 8vh;
@@ -358,6 +494,14 @@ input[type="number"]::-webkit-inner-spin-button {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   border: none;
 }
+
+.choose-payment-method:disabled {
+  background-color: rgba(76, 175, 80, 0.3);
+  color: #939393;
+  cursor: not-allowed;
+  animation: pulse 2s infinite;
+}
+
 .payment-modal-container {
   height: auto;
   color: white;
@@ -424,5 +568,61 @@ a {
   color: #888;
   right: 4vw;
   bottom: 9vh;
+}
+.payment-link-block {
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  text-align: center;
+}
+
+.payment-link-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #fff;
+}
+
+.payment-link-subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 15px;
+}
+
+.payment-link-button {
+  display: inline-block;
+  padding: 10px 20px;
+  background: #2196F3;
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 500;
+  border: none;
+}
+
+.payment-link-button:hover {
+  background: #1976D2;
+}
+
+.min-dep-warn {
+  background-color: #1f1f1f;
+  border-radius: 15px;
+  color: #ea7272;
+  padding: 1px 15px 1px 15px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  text-align: center;
+}
+.telegapay-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 }
 </style>

@@ -47,20 +47,23 @@
       </button>
     </div>
     <div class="buy-button">
-      <button @click="purchase">Приобрести</button>
-    </div>
-
-    <!-- Уведомления -->
-    <div v-if="alertMessage" class="alert" :class="alertType">
-      {{ alertMessage }}
+      <button @click="purchase" :disabled="isLoading">Приобрести</button>
     </div>
   </div>
+  <Teleport to="body">
+    <div v-if="alertMessage" class="alert" :class="alertType">
+      <div class="alert-content">
+        {{ alertMessage }}
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script>
 import { defineComponent, ref } from "vue";
 import BackButton from "@/components/BackButton.vue";
 import { haptic } from "@/utils/telegram";
+import { getSafeAreaInsets, isMobileDevice } from "../utils/telegram";
 
 export default defineComponent({
   components: { BackButton },
@@ -74,7 +77,7 @@ export default defineComponent({
 
     const protocols = ref([{ name: "Vless" }]);
     const tariffs = ref([
-      { name: "Basic🌱", devices: "1 устройство", basePrice: 99 },
+      { name: "Basic🧵", devices: "1 устройство", basePrice: 99 },
       { name: "Medium🚀", devices: "2 устройства", basePrice: 179 },
       { name: "Premium💎", devices: "5 устройств", basePrice: 349 },
     ]);
@@ -83,8 +86,13 @@ export default defineComponent({
     const selectedProto = ref(protocols.value[0]);
     const selectedTariff = ref(tariffs.value[0]);
 
-    const alertMessage = ref(""); // Сообщение для алерта
-    const alertType = ref(""); // Тип алерта (например, "error", "success")
+    const alertMessage = ref("");
+    const alertType = ref("");
+    const isLoading = ref(false);
+
+    const safeArea = getSafeAreaInsets({
+      top: { value: isMobileDevice() ? 4 : 0, unit: 'vh' },
+    });
 
     const selectProto = (protocol) => {
       selectedProto.value = protocol;
@@ -104,64 +112,95 @@ export default defineComponent({
       return `${basePrice * selectedPeriod.value.multiplier} ₽`;
     };
 
-    // Функция для отправки JSON на сервер
     const purchase = async () => {
       haptic.medium();
+
+      if (isLoading.value) {
+        showAlert("Запрос уже обрабатывается", "info");
+        return;
+      }
+
       const jwtToken = sessionStorage.getItem("jwtToken");
       const tg_id = Number(sessionStorage.getItem("tg_id"));
-      const tariff_name = selectedTariff.value.name;
-      const tariff_end = selectedPeriod.value.multiplier;
+      
+      if (!jwtToken || !tg_id) {
+        showAlert("Ошибка авторизации", "error");
+        return;
+      }
 
       const payload = {
-        jwt: jwtToken,
         tg_id: tg_id,
-        tariff_name: tariff_name,
-        tariff_end: tariff_end,
+        tariff_name: selectedTariff.value.name,
+        tariff_end: selectedPeriod.value.multiplier,
       };
 
       try {
-        const response = await fetch("https://back.avevpn.su/requestBuyTariff", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `${jwtToken}`,
-          },
-          body: JSON.stringify(payload),
-        });
+        isLoading.value = true;
+        showAlert("Обработка запроса...", "info");
 
-        if (!response.ok) {
-          throw new Error(`Ошибка HTTP: ${response.status}`);
+        let attempts = 0;
+        const maxAttempts = 3;
+
+        while (attempts < maxAttempts) {
+          try {
+            const response = await fetch("https://back.avevpn.su/requestBuyTariff", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `${jwtToken}`,
+              },
+              body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(`Ошибка HTTP: ${response.status} - ${errorText}`);
+            }
+
+            const result = await response.json();
+
+            if (result === 200) {
+              showAlert("Тариф успешно приобретен", "success");
+              haptic.success();
+              return;
+            } else if (result === "Can't change tariff") {
+              showAlert("У вас уже есть активный тариф", "error");
+              haptic.error();
+              return;
+            } else {
+              throw new Error(`Неожиданный ответ сервера: ${result}`);
+            }
+          } catch (error) {
+            console.error(`Попытка ${attempts + 1} не удалась:`, error);
+            attempts++;
+            
+            if (attempts === maxAttempts) {
+              throw error;
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
-
-        const result = await response.json();
-
-        // Проверяем, что за результат мы получили
-        if (result === 200) {
-          alertMessage.value = "Тариф успешно приобретен";
-          haptic.success()
-          alertType.value = "success"; // Зеленый или другой цвет для успеха
-        } else if (result === "Can't change tariff") {
-          alertMessage.value = "У вас уже есть другой тариф";
-          haptic.error()
-          alertType.value = "error"; // Красный цвет для ошибки
-        }
-
-        // Убираем алерт через 2 секунды
-        setTimeout(() => {
-          alertMessage.value = "";
-          alertType.value = "";
-        }, 2000);
       } catch (error) {
-        console.error("Ошибка при отправке запроса:", error);
-        alertMessage.value = "Произошла ошибка при покупке тарифа";
-        alertType.value = "error";
+        console.error('Ошибка при покупке тарифа:', error);
+        showAlert("Не удалось выполнить покупку тарифа. Попробуйте позже", "error");
+        haptic.error();
+      } finally {
+        isLoading.value = false;
+      }
+    };
 
-        // Убираем алерт через 2 секунды
-        setTimeout(() => {
+    const showAlert = (message, type) => {
+      alertMessage.value = message;
+      alertType.value = type;
+      const timeout = type === 'error' ? 2000 : 2000;
+      
+      setTimeout(() => {
+        if (alertMessage.value === message) {
           alertMessage.value = "";
           alertType.value = "";
-        }, 2000);
-      }
+        }
+      }, timeout);
     };
 
     return {
@@ -178,6 +217,8 @@ export default defineComponent({
       purchase,
       alertMessage,
       alertType,
+      isLoading,
+      safeArea,
     };
   },
 });
@@ -277,53 +318,107 @@ export default defineComponent({
   color: #ececec;
 }
 .buy-button {
-  display: flex;
-  justify-content: center;
-}
-.buy-button button {
   margin-top: 20px;
-  padding: 25px;
-  font-size: 100%;
-  background-color: #59a776;
-  color: #ececec;
-  border: none;
-  border-radius: 15px;
-  cursor: pointer;
-  height: 10vw;
-  width: 60%;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.alert {
-  padding: 10px;
-  margin-top: 20px;
-  border-radius: 15px;
   text-align: center;
-  transition: opacity 0.5s ease;
+
+  button {
+    background-color: #59a776;
+    color: #ececec;
+    border: none;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 15px;
+    transition: all 0.3s ease;
+
+    &:disabled {
+      background-color: rgba(76, 175, 80, 0.3);
+      color: #939393;
+      cursor: not-allowed;
+      animation: pulse 2s infinite;
+    }
+  }
 }
 
-.success {
-  background-color: #4caf50;
+@keyframes pulse {
+  0% {
+    background-color: rgba(76, 175, 80, 0.3);
+  }
+  50% {
+    background-color: rgba(76, 175, 80, 0.5);
+  }
+  100% {
+    background-color: rgba(76, 175, 80, 0.3);
+  }
+}
+
+.alert {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: auto;
+  padding: 16px;
+  transform: translateY(-100%);
+  z-index: 1000;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  display: flex;
+  justify-content: center;
+}
+
+.alert-content {
+  padding-top: v-bind('safeArea.top.value + safeArea.top.unit');
+  width: 50%;
+}
+
+@media (display-mode: fullscreen) {
+  .alert {
+    padding-top: max(45px, env(safe-area-inset-top, 45px));
+  }
+}
+
+.alert.success {
+  background-color: #4CAF50;
   color: white;
 }
-
-.error {
+.alert.error {
   background-color: #f44336;
   color: white;
 }
-
-/* Когда alert исчезает */
-.alert.hidden {
-  opacity: 0;
+.alert.info {
+  background-color: #2196F3;
+  color: white;
 }
-
+.alert:not(:empty) {
+  transform: translateY(0);
+}
+.buy-button button {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+.buy-button button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+.buy-button button:disabled {
+  animation: pulse 1.5s infinite;
+}
 .fade-enter-active,
 .fade-leave-active {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;

@@ -93,7 +93,7 @@ import axios from "axios";
 export default defineComponent({
   components: { BackButton },
   setup() {
-    const link = ref(sessionStorage.getItem("subscription_link"));
+    const link = ref(sessionStorage.getItem("free_subscription_link"));
     const selectedTab = ref("app");
     const activeIndex = ref(null);
 
@@ -114,28 +114,28 @@ export default defineComponent({
       },
       {
         name: "IOS",
-        icons: ["foXray.png", "v2box.png"],
-        descriptions: ["FoXray", "V2Box"],
+        icons: ["v2box.png", "foXray.png"],
+        descriptions: ["V2Box", "FoXray"],
         links: [
-          "https://apps.apple.com/ru/app/foxray/id6448898396",
           "https://apps.apple.com/ru/app/v2box-v2ray-client/id6446814690",
+          "https://apps.apple.com/ru/app/foxray/id6448898396",
         ],
       },
       {
         name: "MacOS",
-        icons: ["foXray.png", "v2box.png", ],
-        descriptions: ["FoXray", "V2Box"],
+        icons: ["v2box.png", "foXray.png"],
+        descriptions: ["V2Box", "FoXray"],
         links: [
-          "https://apps.apple.com/ru/app/foxray/id6448898396",
           "https://apps.apple.com/ru/app/v2box-v2ray-client/id6446814690",
+          "https://apps.apple.com/ru/app/foxray/id6448898396",
         ],
       },
     ]);
 
     const appList = ref([
       { name: "nekoray", videoUrl: "nekobox.mp4" },
-      { name: "FoXray", videoUrl: "foxray-video.mp4" },
       { name: "V2Box", videoUrl: "v2box-video.mp4" },
+      { name: "FoXray", videoUrl: "foxray-video.mp4" },
     ]);
 
     const copyLink = async () => {

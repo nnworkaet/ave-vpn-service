@@ -32,7 +32,6 @@ export default {
       isOpen.value = false;
     };
 
-    // Делаем функции openModal и closeModal доступными для родительского компонента
     expose({ openModal, closeModal });
 
     return { isOpen, closeModal };
@@ -70,7 +69,7 @@ export default {
   left: 0;
   width: 100vw;
   max-width: 100%;
-  height: 40vh;
+  height: 50vh;
   border-radius: 15px 15px 0 0;
   box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.3);
 }
@@ -80,7 +79,7 @@ export default {
   width: 95vw;
   height: 50vh;
   padding: 20px;
-  top: 10vh;
+  top: 20vh;
   border-radius: 20px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   position: fixed;

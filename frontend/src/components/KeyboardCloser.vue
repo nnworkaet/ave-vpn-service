@@ -1,6 +1,5 @@
 <template>
   <div></div>
-  <!-- Этот компонент не рендерит ничего на экране -->
 </template>
 
 <script>
@@ -15,11 +14,9 @@ export default defineComponent({
     },
   },
   setup(props) {
-    // Функция для закрытия клавиатуры при клике вне инпута
     function handleOutsideClick(event) {
       const targetElement = props.targetRef.value;
 
-      // Проверяем, что targetRef является DOM-элементом
       if (
         targetElement &&
         targetElement instanceof HTMLElement &&
@@ -29,13 +26,11 @@ export default defineComponent({
       }
     }
 
-    // Добавляем слушатели событий
     onMounted(() => {
       document.addEventListener("touchstart", handleOutsideClick);
-      document.addEventListener("mousedown", handleOutsideClick); // для десктопных устройств
+      document.addEventListener("mousedown", handleOutsideClick);
     });
 
-    // Убираем слушатели при размонтировании компонента
     onBeforeUnmount(() => {
       document.removeEventListener("touchstart", handleOutsideClick);
       document.removeEventListener("mousedown", handleOutsideClick);

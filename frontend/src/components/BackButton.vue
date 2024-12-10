@@ -22,21 +22,17 @@ export default defineComponent({
     };
   },
   mounted() {
-    // Проверяем, доступен ли Telegram.WebApp
     if (window.Telegram && window.Telegram.WebApp) {
       const backButton = window.Telegram.WebApp.BackButton;
 
-      // Делаем кнопку "Назад" видимой
       backButton.show();
 
-      // Добавляем обработчик нажатия на кнопку "Назад"
       backButton.onClick(() => {
         this.goBack();
       });
     }
   },
   beforeUnmount() {
-    // Убираем обработчик при демонтировании компонента
     if (window.Telegram && window.Telegram.WebApp) {
       window.Telegram.WebApp.BackButton.offClick();
       window.Telegram.WebApp.BackButton.hide();

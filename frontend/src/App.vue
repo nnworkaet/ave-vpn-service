@@ -12,7 +12,6 @@ import { onMounted, ref } from 'vue';
 import { initTelegram, requestFullscreen, getSafeAreaInsets, isMobileDevice } from './utils/telegram';
 
 
-// Устанавливаем отступы в зависимости от платформы
 const safeArea = ref(getSafeAreaInsets({
   top: { value: isMobileDevice() ? 12 : 0, unit: 'vh' },
 }));
@@ -37,7 +36,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
   color: #ffffff;
   display: flex;
-  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   height: 100vh;
   margin: 0;
   overflow: hidden;
@@ -46,9 +46,9 @@ body {
 .safe-area {
   width: 100%;
   height: 100%;
-  padding: v-bind('safeArea.top.value + safeArea.top.unit') 
-          v-bind('safeArea.right?.value + (safeArea.right?.unit ?? "px")') 
-          v-bind('safeArea.bottom?.value + (safeArea.bottom?.unit ?? "px")') 
+  padding: v-bind('safeArea.top.value + safeArea.top.unit')
+          v-bind('safeArea.right?.value + (safeArea.right?.unit ?? "px")')
+          v-bind('safeArea.bottom?.value + (safeArea.bottom?.unit ?? "px")')
           v-bind('safeArea.left?.value + (safeArea.left?.unit ?? "px")');
   box-sizing: border-box;
   display: flex;

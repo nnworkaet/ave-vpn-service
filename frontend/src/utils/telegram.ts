@@ -8,6 +8,7 @@ declare global {
         expand: () => void;
         platform: string;
         isExpanded: boolean;
+        disableVerticalSwipes: () => void;
         HapticFeedback: {
           impactOccurred: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
           notificationOccurred: (type: 'error' | 'success' | 'warning') => void;
@@ -32,9 +33,7 @@ declare global {
 
 export const telegram = window.Telegram.WebApp;
 
-// Функции для тактильной обратной связи
 export const haptic = {
-  // Легкая вибрация для обычных нажатий
   impact() {
     try {
       telegram.HapticFeedback.impactOccurred('light');
@@ -43,7 +42,6 @@ export const haptic = {
     }
   },
 
-  // Средняя вибрация для важных действий
   medium() {
     try {
       telegram.HapticFeedback.impactOccurred('medium');
@@ -52,7 +50,6 @@ export const haptic = {
     }
   },
 
-  // Сильная вибрация для критических действий
   heavy() {
     try {
       telegram.HapticFeedback.impactOccurred('heavy');
@@ -61,7 +58,6 @@ export const haptic = {
     }
   },
 
-  // Вибрация для успешных действий
   success() {
     try {
       telegram.HapticFeedback.notificationOccurred('success');
@@ -70,7 +66,6 @@ export const haptic = {
     }
   },
 
-  // Вибрация для ошибок
   error() {
     try {
       telegram.HapticFeedback.notificationOccurred('error');
@@ -79,7 +74,6 @@ export const haptic = {
     }
   },
 
-  // Вибрация для предупреждений
   warning() {
     try {
       telegram.HapticFeedback.notificationOccurred('warning');
@@ -88,7 +82,6 @@ export const haptic = {
     }
   },
 
-  // Вибрация при выборе элемента
   selection() {
     try {
       telegram.HapticFeedback.selectionChanged();
@@ -110,7 +103,6 @@ interface SafeAreaInsets {
   left?: SafeAreaValue;
 }
 
-// Пользовательские отступы по умолчанию
 const customInsets: SafeAreaInsets = {
   top: { value: 0, unit: 'px' },
   right: { value: 0, unit: 'px' },
@@ -118,7 +110,6 @@ const customInsets: SafeAreaInsets = {
   left: { value: 0, unit: 'px' }
 };
 
-// Получаем безопасную зону с возможностью переопределения
 export const getSafeAreaInsets = (overrides: SafeAreaInsets = {}) => {
   const insets = {
     top: overrides.top ?? customInsets.top,
@@ -130,7 +121,6 @@ export const getSafeAreaInsets = (overrides: SafeAreaInsets = {}) => {
   return insets;
 };
 
-// Проверка, является ли устройство мобильным
 export const isMobileDevice = () => {
   const platform = telegram.platform || '';
   return platform === 'android' || platform === 'ios';
@@ -151,5 +141,11 @@ export const initTelegram = () => {
   telegram.ready();
   if (isMobileDevice()) {
     telegram.expand();
+  }
+};
+
+export const disableSwipes = () => {
+  if (telegram.disableVerticalSwipes) {
+    telegram.disableVerticalSwipes();
   }
 };
