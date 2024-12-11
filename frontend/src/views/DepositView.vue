@@ -166,17 +166,6 @@ export default defineComponent({
 
     const paymentMethods = ref([
       {
-        id: 'telegram_stars',
-        name: 'Telegram Stars',
-        description: 'Оплата звездами',
-        icon: 'tg_star.svg',
-        type: 'image',
-        onClick: () => {
-          selectPaymentMethod('Telegram Stars');
-          openModal('StarsInfo');
-        }
-      },
-      {
         id: 'cryptomus',
         name: 'Cryptomus',
         description: 'Оплата криптовалютой',
@@ -193,6 +182,17 @@ export default defineComponent({
         type: 'image',
         iconStyle: { width: '42px' },
         onClick: () => selectPaymentMethod('TelegaPay')
+      },
+      {
+        id: 'telegram_stars',
+        name: 'Telegram Stars',
+        description: 'Оплата картой / крипто',
+        icon: 'tg_star.svg',
+        type: 'image',
+        onClick: () => {
+          selectPaymentMethod('Telegram Stars');
+          openModal('StarsInfo');
+        }
       }
     ]);
 

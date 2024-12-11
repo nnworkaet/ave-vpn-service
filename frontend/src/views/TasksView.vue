@@ -6,9 +6,8 @@
     </div>
 
     <div class="tasks-tutorial">
-      <p>Чтобы получать бесплатные гигабайты трафика, вы можете выполнять задания, указанные ниже.</p>
+      <p>Чтобы получать бесплатные дни трафика, вы можете выполнять задания, указанные ниже.</p>
       <p>Задание засчитывается только в случае получения статуса 'выполнено'.</p>
-      <p>Пожалуйста, внимательно читайте описание.</p>
     </div>
 
     <div class="tasks-list" 
@@ -239,7 +238,7 @@ onMounted(() => {
 .tasks-tutorial {
   background-color: #1f1f1f;
   border-radius: 15px;
-  padding: 5px 15px 5px 15px;
+  padding: 1px 15px 1px 15px;
   margin-bottom: 10px;
   font-style: italic;
   font-size: 14px;

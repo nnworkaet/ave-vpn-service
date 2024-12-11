@@ -13,6 +13,11 @@
       <button @click="copyLink" class="copy-button">Copy Link</button>
     </div>
 
+    <div class="install-info">
+      <p>Скопируйте ссылку и вставьте её в приложении для вашей ОС</p>
+      <p>🔥- обозначен выбор редакции</p>
+    </div>
+
     <!-- Переключение между вкладками "Приложение" и "Инструкция" -->
     <div class="tab-buttons">
       <button
@@ -42,14 +47,22 @@
             <span class="arrow" :class="{ rotated: activeIndex === index }">▼</span>
           </button>
           <transition name="accordion">
-            <div v-if="activeIndex === index" class="accordion-content">
+            <div v-if="activeIndex === index" class="accordion-content-app">
               <div
                 v-for="(icon, iconIndex) in os.icons"
                 :key="iconIndex"
                 class="icon-description"
                 @click="openLink(os.links[iconIndex])"
               >
-                <img :src="icon" alt="app icon" class="app-icon" />
+                <div class="icon-wrapper">
+                  <img :src="icon" alt="app icon" class="app-icon" />
+                  <span
+                    v-if="isEditorChoice(os.descriptions[iconIndex])"
+                    class="editor-choice"
+                  >
+                    🔥
+                  </span>
+                </div>
                 <p class="app-name">{{ os.descriptions[iconIndex] }}</p>
               </div>
             </div>
@@ -59,7 +72,6 @@
     </div>
 
     <div v-if="selectedTab === 'instruction'">
-      <!-- Вкладки с приложениями и видео-инструкциями -->
       <div class="accordion">
         <div
           v-for="(app, index) in appList"
@@ -76,6 +88,12 @@
           <transition name="accordion">
             <div v-if="activeIndex === index" class="accordion-content">
               <video controls :src="app.videoUrl" class="instruction-video" />
+              <button
+                class="instruction-button"
+                @click="openLink(app.instructionUrl)"
+              >
+                Перейти к инструкции
+              </button>
             </div>
           </transition>
         </div>
@@ -96,46 +114,49 @@ export default defineComponent({
     const link = ref(sessionStorage.getItem("free_subscription_link"));
     const selectedTab = ref("app");
     const activeIndex = ref(null);
+    const editorChoiceApps = ["hiddify", "FoXray"];
+    const isEditorChoice = (appName) => editorChoiceApps.includes(appName);
 
     const osList = ref([
       {
         name: "Windows",
-        icons: ["NekoRay-55x55.png"],
-        descriptions: ["nekoray"],
-        links: ["https://pipreq.me/pwa/av/nekoray_setup.exe"],
+        icons: ["NekoRay-55x55.png", "https://play-lh.googleusercontent.com/Dm_6ugf7Wwib_A3AFFdtkktufYGGOamhb072Ii46zYyb__qZHSocnJGErEUWxp7UWaGG=w240-h480"],
+        descriptions: ["nekoray", "hiddify"],
+        links: ["https://pipreq.me/pwa/av/nekoray_setup.exe", "https://github.com/hiddify/hiddify-app/releases/latest/download/Hiddify-Windows-Setup-x64.Msix"],
       },
       {
         name: "Android",
-        icons: ["v2box.png"],
-        descriptions: ["V2Box"],
+        icons: ["https://play-lh.googleusercontent.com/Dm_6ugf7Wwib_A3AFFdtkktufYGGOamhb072Ii46zYyb__qZHSocnJGErEUWxp7UWaGG=w240-h480", "v2box.png"],
+        descriptions: ["hiddify", "V2Box"],
         links: [
+          "https://play.google.com/store/apps/details?id=app.hiddify.com&hl=en_GB",
           "https://play.google.com/store/apps/details?id=dev.hexasoftware.v2box&hl=en_US",
         ],
       },
       {
         name: "IOS",
-        icons: ["v2box.png", "foXray.png"],
-        descriptions: ["V2Box", "FoXray"],
+        icons: ["foXray.png", "v2box.png"],
+        descriptions: ["FoXray", "V2Box"],
         links: [
-          "https://apps.apple.com/ru/app/v2box-v2ray-client/id6446814690",
           "https://apps.apple.com/ru/app/foxray/id6448898396",
+          "https://apps.apple.com/ru/app/v2box-v2ray-client/id6446814690",
         ],
       },
       {
         name: "MacOS",
-        icons: ["v2box.png", "foXray.png"],
-        descriptions: ["V2Box", "FoXray"],
+        icons: ["foXray.png", "v2box.png", ],
+        descriptions: ["FoXray", "V2Box"],
         links: [
-          "https://apps.apple.com/ru/app/v2box-v2ray-client/id6446814690",
           "https://apps.apple.com/ru/app/foxray/id6448898396",
+          "https://apps.apple.com/ru/app/v2box-v2ray-client/id6446814690",
         ],
       },
     ]);
 
     const appList = ref([
-      { name: "nekoray", videoUrl: "nekobox.mp4" },
-      { name: "V2Box", videoUrl: "v2box-video.mp4" },
-      { name: "FoXray", videoUrl: "foxray-video.mp4" },
+      { name: "nekoray", videoUrl: "nekobox.mp4", instructionUrl: "https://example.com/nekoray" },
+      { name: "V2Box", videoUrl: "v2box-video.mp4", instructionUrl: "https://t.me/AveVpnInstruction/2" },
+      { name: "FoXray", videoUrl: "foxray-video.mp4", instructionUrl: "https://example.com/foxray" },
     ]);
 
     const copyLink = async () => {
@@ -217,12 +238,56 @@ export default defineComponent({
       toggleAccordion,
       copyLink,
       openLink,
+      isEditorChoice,
     };
   },
 });
 </script>
 
 <style scoped lang="scss">
+.instruction-button {
+  margin-top: 10px;
+  padding: 10px 20px;
+  background-color: #59a776;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.install-info {
+  background-color: #1f1f1f;
+  border-radius: 15px;
+  padding: 1px 15px 1px 15px;
+  margin-bottom: 10px;
+  font-style: italic;
+  font-size: 14px;
+}
+
+.icon-wrapper {
+  position: relative;
+  display: inline-block;
+
+  .app-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+  }
+
+  .editor-choice {
+    position: absolute;
+    top: -5px;
+    left: 0;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 5px;
+    transform: translate(-25%, -25%);
+  }
+}
+
 .container {
   width: 95%;
   height: 90%;
@@ -231,7 +296,7 @@ export default defineComponent({
 }
 .copy-link {
   display: flex;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
 .link-field {
@@ -275,6 +340,9 @@ export default defineComponent({
 }
 
 .accordion {
+  max-height: 50vh; /* Ограничиваем высоту */
+  overflow-y: auto;
+
   .accordion-item {
     margin-bottom: 10px;
   }
@@ -300,6 +368,18 @@ export default defineComponent({
   }
 
   .accordion-content {
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    border: none;
+    border-radius: 0 0 15px 15px;
+    color: black;
+    background-color: #fafafa;
+    transform-origin: top;
+    transition: all 0.3s ease;
+  }
+
+  .accordion-content-app {
     gap: 20px;
     display: flex;
     padding: 15px;
@@ -333,7 +413,6 @@ export default defineComponent({
 
 .instruction-video {
   width: 100%;
-  height: 300px;
 }
 
 .arrow {

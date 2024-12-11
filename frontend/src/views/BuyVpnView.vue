@@ -64,6 +64,7 @@ import { defineComponent, ref } from "vue";
 import BackButton from "@/components/BackButton.vue";
 import { haptic } from "@/utils/telegram";
 import { getSafeAreaInsets, isMobileDevice } from "../utils/telegram";
+import { useRouter } from "vue-router";
 
 export default defineComponent({
   components: { BackButton },
@@ -90,6 +91,8 @@ export default defineComponent({
     const alertType = ref("");
     const isLoading = ref(false);
 
+    const router = useRouter();
+
     const safeArea = getSafeAreaInsets({
       top: { value: isMobileDevice() ? 4 : 0, unit: 'vh' },
     });
@@ -112,8 +115,17 @@ export default defineComponent({
       return `${basePrice * selectedPeriod.value.multiplier} ₽`;
     };
 
+    const goTo = (route) => {
+      haptic.impact();
+      router.push(`/${route}`);
+    };
+
     const purchase = async () => {
       haptic.medium();
+
+      if (sessionStorage.getItem("balance") < selectedTariff.value.basePrice) {
+        goTo('deposit')
+      }
 
       if (isLoading.value) {
         showAlert("Запрос уже обрабатывается", "info");

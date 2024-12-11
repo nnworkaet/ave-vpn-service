@@ -81,7 +81,7 @@ export default defineComponent({
         ],
       },
     ]);
-    const activeIndex = ref(0);
+    const activeIndex = ref(6);
 
     const toggleAccordion = (index) => {
       haptic.selection();

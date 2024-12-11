@@ -16,10 +16,25 @@
       </div>
     </div>
 
-    <div class="referral" @click="goTo('referal')">
-      <p>Приглашайте друзей, получайте до +2 дней</p>
-      <div class="faces">
-        <img src="ref_icon_main_screen.svg" alt="refs" />
+    <div class="referral">
+      <div class="text-container">
+        <p>Приглашайте друзей</p>
+        <p style="font-size: 4vw">получайте до +2 дней</p>
+      </div>
+      <button class="invite-btn" @click="goTo('referal')" :disabled="isLoading">
+        Пригласить
+      </button>
+    </div>
+
+    <div class="tasks-banner">
+      <div class="banner-content">
+        <button class="tasks-banner-btn" @click="goTo('tasks')" :disabled="isLoading">
+          Открыть
+        </button>
+        <div class="banner-txt">
+          <p class="p1">Получай бонусы</p>
+          <p class="p2">за выполнение заданий!</p>
+        </div>
       </div>
     </div>
 
@@ -68,11 +83,8 @@
             </div>
           </div>
           <div class="vpn-buttons-container">
-            <button class="button-buy-vpn" @click="goTo('tasks')" :disabled="isLoading">
-              Продлить
-            </button>
-            <button class="button-install-vpn" @click="handleInstallVPN('free')" :disabled="isLoading">
-              Установить
+            <button class="button-install-vpn" :class="{free: freeTariff}" @click="handleInstallVPN('free')" :disabled="isLoading">
+              Включить
             </button>
           </div>
         </div>
@@ -88,12 +100,12 @@
           <div v-if="tariffName !== null" class="sub-container">
             <div class="top-sub-container">
               <p class="p-container" :class="{ 'skeleton': !tariffName }">
-                {{ tariffName || '' }}
+                {{ tariffName || animationMessages[currentMessageIndex] }}
               </p>
             </div>
             <div class="traffic-container">
-              <p class="time-container" :class="{ 'skeleton': !subscriptionEnd }">
-                {{ subscriptionEnd || animationMessages[currentMessageIndex] }}
+              <p class="time-container" >
+                {{ subscriptionEnd }}
               </p>
             </div>
           </div>
@@ -102,7 +114,7 @@
               {{ tariffName !== null ? "Продлить VPN" : "Купить VPN" }}
             </button>
             <button class="button-install-vpn" @click="handleInstallVPN('paid')" :disabled="isLoading">
-              Установить
+              Включить
             </button>
           </div>
         </div>
@@ -115,6 +127,7 @@
         </div>
       </div>
     </div>
+
     <InstructionPopup 
       :is-visible="showInstructions" 
       @close="closeInstructions" 
@@ -154,11 +167,22 @@ const isLoading = ref(true);
 const showInstructions = ref(false);
 
 const animationMessages = [
-  "Подготавливаем VPN",
-  "Настраиваем бесплатный тариф",
-  "Защищаем ваши данные от РКН",
-  "Пьём кофе <3"
+  "Запускаем серверы...",
+  "Шифруем соединение...",
+  "Скрываем IP-адрес...",
+  "Обновляем прокси-листы...",
+  "Укладываем кабель через океан...",
+  "Прячем логи под замок...",
+  "Проверяем скорость подключения...",
+  "Запускаем космический спутник...",
+  "Устанавливаем безопасное соединение...",
+  "Обновляем алгоритмы шифрования...",
+  "Достаем запасной кабель из рюкзака...",
+  "Отправляем голубя с пакетом данных...",
+  "Настраиваем межгалактический роутер...",
+  "Прячем вас за стеной анонимности..."
 ];
+
 const currentMessageIndex = ref(0);
 
 const isFreeTariffAvailable = computed(() => {
@@ -190,7 +214,7 @@ const startTextAnimation = () => {
   setInterval(() => {
     currentMessageIndex.value =
       (currentMessageIndex.value + 1) % animationMessages.length;
-  }, 5000);
+  }, 3000);
 };
 
 const trafficBarClass = computed(() => {
@@ -341,26 +365,45 @@ const goTo = (route) => {
   router.push(`/${route}`);
 };
 
-const fetchJwtToken = async () => {
-  try {
-    const response = await axios.post("https://back.avevpn.su/tokentg", {
-      hash: hash.value,
-      init_data: initData.value,
-      user_tg_id: telegramId.value,
-    });
+const fetchJwtToken = async (maxRetries = 5) => {
+  let attempts = 0;
+  const axiosInstance = axios.create({
+    timeout: 2000, // Тайм-аут запроса
+  });
 
-    const { access_token } = response.data;
-    jwtToken.value = `Bearer ${access_token}`;
+  while (attempts < maxRetries) {
+    try {
+      const response = await axiosInstance.post("https://back.avevpn.su/tokentg", {
+        hash: hash.value,
+        init_data: initData.value,
+        user_tg_id: telegramId.value,
+      });
 
-    sessionStorage.setItem("tg_id", telegramId.value);
-    sessionStorage.setItem("jwtToken", jwtToken.value);
-    sessionStorage.setItem("tokenTimestamp", Date.now());
+      const { access_token } = response.data;
+      if (!access_token) {
+        throw new Error("Пустой токен");
+      }
 
-    await fetchUserInfo();
-  } catch (error) {
-    console.error("Ошибка при получении токена:", error);
+      jwtToken.value = `Bearer ${access_token}`;
+      sessionStorage.setItem("tg_id", telegramId.value);
+      sessionStorage.setItem("jwtToken", jwtToken.value);
+      sessionStorage.setItem("tokenTimestamp", Date.now());
+
+      await fetchUserInfo();
+      return; // Успешное завершение
+    } catch (error) {
+      attempts++;
+      console.error(`Ошибка при получении токена (попытка ${attempts}):`, error);
+
+      if (attempts >= maxRetries) {
+        console.error("Не удалось получить токен после нескольких попыток.");
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 500 * attempts)); // Задержка перед повтором
+      }
+    }
   }
 };
+
 
 function getDaysWord(days) {
     if (days % 10 === 1 && days % 100 !== 11) {
@@ -403,6 +446,7 @@ const fetchUserInfo = async () => {
     subscription_link.value = userInfo.subscription_link;
     link_state.value = userInfo.link_state;
     history_payments.value = userInfo.history_payments
+    sessionStorage.setItem("balance", balance.value)
     sessionStorage.setItem("subscription_link", subscription_link.value);
     sessionStorage.setItem("link_state", link_state.value);
     sessionStorage.setItem("history_payments", history_payments.value)
@@ -556,10 +600,10 @@ const closeInstructions = () => {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 .referral {
-  font-size: 20px;
+  font-size: 5vw;
   cursor: pointer;
   background-color: #1f1f1f;
-  padding: 15px;
+  padding: 10px 15px 10px 15px;
   border-radius: 15px;
   margin-bottom: 10px;
   display: flex;
@@ -568,13 +612,19 @@ const closeInstructions = () => {
   align-items: center;
   position: relative;
 }
-.referral:hover {
-  background-color: #494949; /* цвет при наведении */
-  color: #fff;
+
+.invite-btn {
+  border-radius: 15px;
+  background: linear-gradient(90deg, #4776E6 0%, #8E54E9 100%);
+  color: white;
+  padding: 10px;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  position: absolute;
+  right: 10px;
 }
-.faces {
-  height: 100%;
-}
+
 .tariffs-container {
   position: relative;
   overflow: hidden;
@@ -604,13 +654,14 @@ const closeInstructions = () => {
 .vpn-buttons.subscribed {
   position: relative;
   overflow: hidden;
-  border-radius: 20px;
-  padding: 20px;
+  border-radius: 15px;
+  padding: 15px;
   background-color: #1f1f1f;
   color: white;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  justify-content: center;
 }
 
 .vpn-buttons-container {
@@ -647,6 +698,10 @@ const closeInstructions = () => {
   color: #ececec;
 }
 
+.free {
+  width: 100%;
+}
+
 .gradient-animate {
   background: linear-gradient(
     120deg,
@@ -674,11 +729,11 @@ const closeInstructions = () => {
 .sub-container {
   position: relative;
   z-index: 1;
-  font-size: 24px;
+  font-size: 6vw;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   width: 100%;
-  gap: 10px;
+  justify-content: space-between;
 }
 
 .help-icon {
@@ -695,8 +750,8 @@ const closeInstructions = () => {
 }
 
 .p-container {
-  font-weight: bold;
-  display: inline-block;
+  font-weight: 600;
+  display: flex;
   background-color: #4d644d;
   border-radius: 15px;
   margin-top: 5px;
@@ -706,7 +761,7 @@ const closeInstructions = () => {
 }
 
 .time-container {
-  font-size: 18px;
+  font-size: 4.5vw;
   margin: 0;
   color: #c5c5c5;
 }
@@ -714,10 +769,11 @@ const closeInstructions = () => {
 .traffic-container {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  width: 100%;
-  gap: 8px;
-  margin-left: 7px;
+  align-items: center;
+  justify-content: center;
+  width: 53%;
+  gap: 5px;
+  margin-left: 0;
 }
 
 .traffic-bar {
@@ -790,11 +846,13 @@ const closeInstructions = () => {
   position: relative;
   overflow: hidden;
   background: #1f1f1f;
-  border-radius: 16px;
+  border-radius: 15px;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 
 .skeleton::after {
   content: "";
+  border-radius: inherit;
   position: absolute;
   top: 0;
   right: 0;
@@ -820,11 +878,13 @@ const closeInstructions = () => {
 .balance-text.skeleton {
   min-width: 80px;
   height: 5vh;
+  border-radius: 15px;
 }
 
 .p-container.skeleton {
-  min-width: 150px;
-  height: 20px;
+  width: 81vw;
+  font-size: 5vw;
+  border-radius: 15px;
 }
 
 .time-container.skeleton {
@@ -883,4 +943,73 @@ button:disabled {
   cursor: not-allowed;
   pointer-events: none;
 }
+
+.text-container {
+  display: flex;
+  flex-direction: column;
+  gap: 5px
+}
+
+.text-container p {
+  margin: 0;
+}
+
+.tasks-banner {
+  position: relative;
+  border-radius: 15px;
+  background: url('/public/tasks-back.png') no-repeat right center;
+  background-size: auto 100%;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.tasks-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 15px;
+  pointer-events: none;
+}
+
+.banner-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+}
+
+.tasks-banner-btn {
+  border-radius: 15px;
+  background: linear-gradient(90deg, #4776E6 0%, #8E54E9 100%);
+  color: white;
+  border: none;
+  padding: 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.banner-txt p {
+  margin: 3px;
+  color: #ffffff;
+  font-weight: 600;
+  text-shadow:
+    -1px -1px 0 black,  /* Верхний левый угол */
+    1px -1px 0 black,   /* Верхний правый угол */
+    -1px 1px 0 black,   /* Нижний левый угол */
+    1px 1px 0 black;
+}
+
+.p1 {
+  font-size: 5.5vw;
+}
+
+.p2 {
+  font-size: 4.5vw;
+}
+
 </style>
